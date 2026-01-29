@@ -107,6 +107,15 @@ class Database:
             )
         """)
 
+        # 4. sent_notifications - 推送记录表 (用于去重)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sent_notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                repo_name TEXT NOT NULL UNIQUE,
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         # 创建索引
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_daily_date ON repos_daily(date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_daily_repo ON repos_daily(repo_name)")
@@ -116,6 +125,7 @@ class Database:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_details_language ON repos_details(language)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_history_repo ON repos_history(repo_name)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_history_date ON repos_history(date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sent_time ON sent_notifications(sent_at)")
 
         self.conn.commit()
         print(f"✅ 数据库初始化完成: {self.db_path}")
@@ -507,6 +517,55 @@ class Database:
             """, (limit,))
 
         return [dict(row) for row in cursor.fetchall()]
+
+
+    def record_notification(self, repo_names: List[str]) -> None:
+        """
+        记录已推送的仓库
+
+        Args:
+            repo_names: 仓库名称列表
+        """
+        if not repo_names:
+            return
+
+        self.connect()
+        cursor = self.conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        for name in repo_names:
+            cursor.execute("""
+                INSERT OR REPLACE INTO sent_notifications (repo_name, sent_at)
+                VALUES (?, ?)
+            """, (name, now))
+
+        self.conn.commit()
+        print(f"✅ 记录推送历史: {len(repo_names)} 个仓库")
+
+    def get_recently_notified(self, days: int) -> set:
+        """
+        获取最近已推送的仓库
+
+        Args:
+            days: 查找最近 N 天
+
+        Returns:
+            仓库名称集合 set(repo_names)
+        """
+        if days <= 0:
+            return set()
+
+        self.connect()
+        cursor = self.conn.cursor()
+        
+        cutoff_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+
+        cursor.execute("""
+            SELECT repo_name FROM sent_notifications
+            WHERE sent_at > ?
+        """, (cutoff_date,))
+
+        return {row["repo_name"] for row in cursor.fetchall()}
 
 
 def get_database() -> Database:

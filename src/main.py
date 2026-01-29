@@ -12,10 +12,10 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from src.config import (
-    NVIDIA_API_KEY,  # Changed from ZHIPU_API_KEY
-    RESEND_API_KEY,
-    EMAIL_TO,
-    RESEND_FROM_EMAIL,
+    NVIDIA_API_KEY,
+    TELEGRAM_BOT_TOKEN,
+    TELEGRAM_CHAT_ID,
+    DEDUPLICATE_DAYS,
     DB_PATH,
     DB_RETENTION_DAYS,
     TOP_N_DETAILS,
@@ -25,11 +25,11 @@ from src.config import (
 )
 from src.github_fetcher import GitHubFetcher
 from src.readme_fetcher import ReadmeFetcher
-from src.ai_summarizer import AISummarizer  # Changed from ClaudeSummarizer
+from src.ai_summarizer import AISummarizer
 from src.database import Database
 from src.trend_analyzer import TrendAnalyzer
 from src.email_reporter import EmailReporter
-from src.resend_sender import ResendSender
+from src.telegram_sender import TelegramSender  # Changed from ResendSender
 from src.web_generator import WebGenerator
 
 
@@ -41,7 +41,7 @@ def print_banner():
 ║   GitHub Topics Trending - 话题趋势追踪系统                   ║
 ║                                                              ║
 ║   GitHub API 数据采集 · AI (Nvidia NIM) 智能分析             ║
-║   趋势计算 · HTML 邮件报告 · 静态网站生成                    ║
+║   趋势计算 · Telegram 通知 · 静态网站生成                    ║
 ║                                                              ║
 ╚════════════════════════════════════════════════════════════╝
 """
@@ -67,13 +67,12 @@ def check_environment() -> bool:
 
     if not NVIDIA_API_KEY:
         errors.append("NVIDIA_API_KEY 环境变量未设置 (请提供 Nvidia API Key)")
-
-
-    if not RESEND_API_KEY:
-        errors.append("RESEND_API_KEY 环境变量未设置 (请提供 Resend API Key)")
-
-    if not EMAIL_TO:
-        errors.append("EMAIL_TO 环境变量未设置 (请提供收件人邮箱)")
+        
+    if not TELEGRAM_BOT_TOKEN:
+        errors.append("TELEGRAM_BOT_TOKEN 环境变量未设置")
+        
+    if not TELEGRAM_CHAT_ID:
+        errors.append("TELEGRAM_CHAT_ID 环境变量未设置")
 
     if errors:
         print("❌ 环境变量配置错误:")
@@ -97,6 +96,10 @@ def main():
     print(f"[目标日期] {today}")
     print(f"[话题标签] #{TOPIC}")
     print(f"   (北京时间: {datetime.now(timezone.utc)} + 8h)")
+    
+    if DEDUPLICATE_DAYS > 0:
+        print(f"   (去重模式: 过滤 {DEDUPLICATE_DAYS} 天内已推送的项目)")
+    
     print()
 
     # 初始化数据库
@@ -141,13 +144,14 @@ def main():
         db.save_repo_details(ai_summaries)
         print()
 
-        # 5. 计算趋势
-        print(f"[步骤 5/9] 计算趋势...")
+        # 5. 计算趋势 (含去重逻辑)
+        print(f"[步骤 5/9] 计算趋势 (去重天数: {DEDUPLICATE_DAYS})...")
         analyzer = TrendAnalyzer(db)
-        trends = analyzer.calculate_trends(today_repos, today, ai_summary_map)
+        trends = analyzer.calculate_trends(today_repos, today, ai_summary_map, deduplicate_days=DEDUPLICATE_DAYS)
 
         # 输出趋势摘要
-        print(f"   Top 20: {len(trends['top_20'])} 个")
+        top_20_count = len(trends.get('top_20', []))
+        print(f"   Top 20 (新发现): {top_20_count} 个")
         print(f"   上升: {len(trends['rising_top5'])} 个")
         print(f"   新晋: {len(trends['new_entries'])} 个")
         print(f"   跌出: {len(trends['dropped_entries'])} 个")
@@ -155,31 +159,29 @@ def main():
         print(f"   活跃: {len(trends['active'])} 个")
         print()
 
-        # 6. 生成 HTML 邮件
-        print(f"[步骤 6/9] 生成 HTML 邮件...")
+        # 6. 生成 HTML 报告 (仅用于网站生成，不再发送邮件)
+        print(f"[步骤 6/9] 生成 HTML 报告...")
         email_reporter = EmailReporter()
+        # 注意: 这里传入的 trends 已经是去重后的 top_20，但网站生成可能希望展示全部 Top 20?
+        # 暂时保持一致，网站展示的内容与推送一致
         html_content = email_reporter.generate_email_html(trends, today)
-        print(f"   HTML 长度: {len(html_content)} 字符")
+        print(f"   HTML 生成完成")
         print()
 
-        # 7. 发送邮件
-        print(f"[步骤 7/9] 发送邮件...")
-        print(f"[调试] Resend 配置:")
-        email_to_masked = f"{EMAIL_TO[:3]}***{EMAIL_TO[EMAIL_TO.find('@'):]}" if '@' in EMAIL_TO else "***"
-        print(f"   EMAIL_TO: {email_to_masked} (Len: {len(EMAIL_TO)})")
-        print(f"   FROM: {RESEND_FROM_EMAIL}")
-        sender = ResendSender(RESEND_API_KEY)
-        result = sender.send_email(
-            to=EMAIL_TO,
-            subject=f"📊 GitHub Topics Daily - #{TOPIC} - {today}",
-            html_content=html_content,
-            from_email=RESEND_FROM_EMAIL
-        )
+        # 7. 发送 Telegram 通知
+        print(f"[步骤 7/9] 发送 Telegram 通知...")
+        sender = TelegramSender(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
+        result = sender.send_report(trends, today)
 
         if result["success"]:
-            print(f"   ✅ 邮件发送成功! ID: {result['id']}")
+            print(f"   ✅ Telegram 发送成功!")
+            
+            # 记录已推送的仓库，用于后续去重
+            notified_repos = [r["repo_name"] for r in trends.get("top_20", [])]
+            if notified_repos:
+                db.record_notification(notified_repos)
         else:
-            print(f"   ❌ 邮件发送失败: {result['message']}")
+            print(f"   ❌ Telegram 发送失败: {result.get('message')}")
         print()
 
         # 8. 生成 GitHub Pages 网站
@@ -201,11 +203,10 @@ def main():
         print("║                                                              ║")
         print(f"║   日期: {today}                                            ║")
         print(f"║   话题: #{TOPIC}                                            ║")
-        print(f"║   仓库数: {len(today_repos)}                                    ║")
-        print(f"║   新晋: {len(trends['new_entries'])} | 跌出: {len(trends['dropped_entries'])}                         ║")
-        print(f"║   暴涨: {len(trends['surging'])}                                                ║")
+        print(f"║   推送: {top_20_count} 个新项目                                 ║")
         print("║                                                              ║")
         print("╚════════════════════════════════════════════════════════════╝")
+
 
     except KeyboardInterrupt:
         print("\n⚠️ 用户中断")

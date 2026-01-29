@@ -47,8 +47,15 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 NOTIFICATION_TO = os.getenv("NOTIFICATION_TO")
 
 # ============================================================================
-# Resend 邮件配置
+# Telegram 通知配置
 # ============================================================================
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
+# 推送去重天数 (0 表示不去重)
+DEDUPLICATE_DAYS = _get_env_int("DEDUPLICATE_DAYS", 7)
+
+# Deprecated: Resend 邮件配置 (保留以防回滚)
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev").strip()
 EMAIL_TO = os.getenv("EMAIL_TO", "").strip().lower()

@@ -21,7 +21,7 @@ class TrendAnalyzer:
         """
         self.db = db
 
-    def calculate_trends(self, today_data: List[Dict], date: str, ai_summaries: Dict = None) -> Dict:
+    def calculate_trends(self, today_data: List[Dict], date: str, ai_summaries: Dict = None, deduplicate_days: int = 0) -> Dict:
         """
         计算今日趋势
 
@@ -29,18 +29,10 @@ class TrendAnalyzer:
             today_data: 今日仓库列表
             date: 今日日期 YYYY-MM-DD
             ai_summaries: AI 分析的仓库详情 {repo_name: detail}
+            deduplicate_days: 去重天数，0 表示不去重
 
         Returns:
-            {
-                "date": "2026-01-27",
-                "top_20": [...],           # Top 20 (带 AI 总结)
-                "rising_top5": [...],      # 星标增长 Top 5
-                "falling_top5": [...],     # 星标下降 Top 5
-                "new_entries": [...],      # 新晋榜单
-                "dropped_entries": [...],  # 跌出榜单
-                "surging": [],             # 星标暴涨 (>30%)
-                "active": []               # 活跃项目
-            }
+            趋势结果字典
         """
         # 获取昨日数据
         yesterday_data = self.db.get_yesterday_data(date)
@@ -57,11 +49,24 @@ class TrendAnalyzer:
         # 获取 AI 摘要
         if ai_summaries is None:
             ai_summaries = self.db.get_all_repo_details()
+        
+        # 获取如果有的已推送记录
+        sent_repos = set()
+        if deduplicate_days > 0:
+            sent_repos = self.db.get_recently_notified(deduplicate_days)
+            print(f"🔍 发现 {len(sent_repos)} 个最近 {deduplicate_days} 天已推送的仓库，将进行过滤")
 
+        # 过滤 Top 20 候选
+        # 1. 过滤掉已推送的
+        # 2. 补足 20 个
+        candidates = [r for r in today_with_delta if r["repo_name"] not in sent_repos]
+        if len(candidates) < 20:
+             print(f"⚠️ 过滤后仅剩 {len(candidates)} 个仓库，不足 20 个")
+        
         # 找出各种趋势
         results = {
             "date": date,
-            "top_20": self._get_top_20_with_summary(today_with_delta, ai_summaries),
+            "top_20": self._get_default_top_20(candidates, ai_summaries),
             "rising_top5": self._get_top_movers(today_with_delta, direction="up", limit=5, ai_summaries=ai_summaries),
             "falling_top5": self._get_top_movers(today_with_delta, direction="down", limit=5, ai_summaries=ai_summaries),
             "new_entries": self._find_new_entries(today_with_delta, yesterday_map, ai_summaries),
@@ -72,59 +77,14 @@ class TrendAnalyzer:
 
         return results
 
-    def _calculate_deltas(self, today: List[Dict], yesterday_map: Dict[str, Dict]) -> List[Dict]:
-        """
-        计算排名和星标变化
+    def _get_default_top_20(self, candidates: List[Dict], ai_summaries: Dict) -> List[Dict]:
+        """获取默认 Top 20 (即过滤后的前 20)"""
+        top_20 = candidates[:20]
+        return self._attach_summaries(top_20, ai_summaries)
 
-        Args:
-            today: 今日仓库列表
-            yesterday_map: 昨日仓库映射 {repo_name: repo}
-
-        Returns:
-            包含变化值的仓库列表
-        """
-        for repo in today:
-            repo_name = repo["repo_name"]
-
-            if repo_name in yesterday_map:
-                yesterday_repo = yesterday_map[repo_name]
-
-                # 排名变化（昨日排名 - 今日排名，正数=上升）
-                yesterday_rank = yesterday_repo.get("rank", repo["rank"])
-                repo["rank_delta"] = yesterday_rank - repo["rank"]
-
-                # 星标变化
-                yesterday_stars = yesterday_repo.get("stars", repo["stars"])
-                stars_delta = repo["stars"] - yesterday_stars
-                repo["stars_delta"] = stars_delta
-
-                # 星标变化率
-                if yesterday_stars > 0:
-                    repo["stars_rate"] = round(stars_delta / yesterday_stars, 4)
-                else:
-                    repo["stars_rate"] = 0
-            else:
-                # 新仓库，没有历史数据
-                repo["rank_delta"] = 0
-                repo["stars_delta"] = 0
-                repo["stars_rate"] = 0
-
-        return today
-
-    def _get_top_20_with_summary(self, today: List[Dict], ai_summaries: Dict) -> List[Dict]:
-        """
-        获取 Top 20 并附加 AI 摘要
-
-        Args:
-            today: 今日仓库列表
-            ai_summaries: AI 摘要映射
-
-        Returns:
-            Top 20 仓库列表（带 AI 摘要）
-        """
-        top_20 = today[:20]
-
-        for repo in top_20:
+    def _attach_summaries(self, repos: List[Dict], ai_summaries: Dict) -> List[Dict]:
+        """附加 AI 摘要信息"""
+        for repo in repos:
             repo_name = repo["repo_name"]
             if repo_name in ai_summaries:
                 summary = ai_summaries[repo_name]
@@ -135,14 +95,11 @@ class TrendAnalyzer:
                 repo["category"] = summary.get("category", "")
                 repo["category_zh"] = summary.get("category_zh", "")
             else:
-                repo["summary"] = ""
-                repo["description"] = ""
-                repo["use_case"] = ""
+                # 默认空值
+                for key in ["summary", "description", "use_case", "category", "category_zh"]:
+                    repo[key] = ""
                 repo["solves"] = []
-                repo["category"] = ""
-                repo["category_zh"] = ""
-
-        return top_20
+        return repos
 
     def _get_top_movers(self, today: List[Dict], direction: str = "up", limit: int = 5, ai_summaries: Dict = None) -> List[Dict]:
         """
