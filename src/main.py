@@ -170,6 +170,7 @@ def main():
 
         # 7. 发送 Telegram 通知
         print(f"[步骤 7/9] 发送 Telegram 通知...")
+        trends["topic"] = TOPIC  # 注入 Topic 信息以供显示
         sender = TelegramSender(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
         result = sender.send_report(trends, today)
 
