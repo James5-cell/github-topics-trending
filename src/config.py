@@ -6,7 +6,7 @@ import os
 # ============================================================================
 # Nvidia API 配置 (via OpenAI SDK)
 # ============================================================================
-NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "").strip()
 NVIDIA_BASE_URL = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "meta/llama3-70b-instruct")
 
@@ -49,9 +49,9 @@ NOTIFICATION_TO = os.getenv("NOTIFICATION_TO")
 # ============================================================================
 # Resend 邮件配置
 # ============================================================================
-RESEND_API_KEY = os.getenv("RESEND_API_KEY")
-RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
-EMAIL_TO = os.getenv("EMAIL_TO")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
+RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev").strip()
+EMAIL_TO = os.getenv("EMAIL_TO", "").strip()
 
 # ============================================================================
 # 数据库配置
