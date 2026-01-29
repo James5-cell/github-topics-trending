@@ -197,14 +197,23 @@ class AISummarizer:
         """
         # 清理可能的 markdown 代码块标记
         result_text = result_text.strip()
-        if result_text.startswith("```json"):
-            result_text = result_text[7:]
-        elif result_text.startswith("```"):
-            result_text = result_text[3:]
         
-        if result_text.endswith("```"):
-            result_text = result_text[:-3]
+        # 尝试提取 JSON 数组部分
+        start_idx = result_text.find('[')
+        end_idx = result_text.rfind(']')
+        
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            result_text = result_text[start_idx : end_idx + 1]
+        else:
+            # 如果找不到 []，尝试清理 markdown 标记后直接解析
+            if result_text.startswith("```json"):
+                result_text = result_text[7:]
+            elif result_text.startswith("```"):
+                result_text = result_text[3:]
             
+            if result_text.endswith("```"):
+                result_text = result_text[:-3]
+        
         result_text = result_text.strip()
 
         try:
