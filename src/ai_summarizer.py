@@ -259,7 +259,7 @@ class AISummarizer:
             # ... (可以保留原来的逻辑)
             
             # 简单的分类推断
-            language = repo.get("language", "").lower()
+            language = (repo.get("language") or "").lower()
             topics = repo.get("topics", [])
             category = "other"
             # 简单规则...
