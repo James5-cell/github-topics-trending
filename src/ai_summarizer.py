@@ -270,6 +270,8 @@ class AISummarizer:
                 "description": description,
                 "category": category,
                 "category_zh": REPO_CATEGORIES.get(category, "其他"),
+                "owner": repo_name.split("/")[0] if "/" in repo_name else "",
+                "url": repo.get("url", f"https://github.com/{repo_name}"),
                 "fallback": True
             })
         return results
