@@ -232,8 +232,8 @@ class AISummarizer:
                     "language": original.get("language", ""),
                     "topics": original.get("topics", []),
                     "readme_summary": original.get("readme_summary", ""),
-                    "owner": original.get("owner", ""),
-                    "url": original.get("url", "")
+                    "owner": original.get("owner") or repo_name.split("/")[0],
+                    "url": original.get("url", f"https://github.com/{repo_name}")
                 }
 
                 validated_results.append(validated_result)
