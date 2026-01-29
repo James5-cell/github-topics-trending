@@ -51,7 +51,7 @@ NOTIFICATION_TO = os.getenv("NOTIFICATION_TO")
 # ============================================================================
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev").strip()
-EMAIL_TO = os.getenv("EMAIL_TO", "").strip()
+EMAIL_TO = os.getenv("EMAIL_TO", "").strip().lower()
 
 # ============================================================================
 # 数据库配置

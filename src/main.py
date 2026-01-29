@@ -164,6 +164,10 @@ def main():
 
         # 7. 发送邮件
         print(f"[步骤 7/9] 发送邮件...")
+        print(f"[调试] Resend 配置:")
+        email_to_masked = f"{EMAIL_TO[:3]}***{EMAIL_TO[EMAIL_TO.find('@'):]}" if '@' in EMAIL_TO else "***"
+        print(f"   EMAIL_TO: {email_to_masked} (Len: {len(EMAIL_TO)})")
+        print(f"   FROM: {RESEND_FROM_EMAIL}")
         sender = ResendSender(RESEND_API_KEY)
         result = sender.send_email(
             to=EMAIL_TO,
