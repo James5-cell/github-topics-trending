@@ -77,6 +77,59 @@ class TrendAnalyzer:
 
         return results
 
+    def _calculate_deltas(self, today: List[Dict], yesterday_map: Dict[str, Dict]) -> List[Dict]:
+        """
+        计算排名和星标变化
+
+        Args:
+            today: 今日仓库列表
+            yesterday_map: 昨日仓库映射 {repo_name: repo}
+
+        Returns:
+            包含变化值的仓库列表
+        """
+        for repo in today:
+            repo_name = repo["repo_name"]
+
+            if repo_name in yesterday_map:
+                yesterday_repo = yesterday_map[repo_name]
+
+                # 排名变化（昨日排名 - 今日排名，正数=上升）
+                yesterday_rank = yesterday_repo.get("rank", repo["rank"])
+                repo["rank_delta"] = yesterday_rank - repo["rank"]
+
+                # 星标变化
+                yesterday_stars = yesterday_repo.get("stars", repo["stars"])
+                stars_delta = repo["stars"] - yesterday_stars
+                repo["stars_delta"] = stars_delta
+
+                # 星标变化率
+                if yesterday_stars > 0:
+                    repo["stars_rate"] = round(stars_delta / yesterday_stars, 4)
+                else:
+                    repo["stars_rate"] = 0
+            else:
+                # 新仓库，没有历史数据
+                repo["rank_delta"] = 0
+                repo["stars_delta"] = 0
+                repo["stars_rate"] = 0
+
+        return today
+
+    def _get_top_20_with_summary(self, today: List[Dict], ai_summaries: Dict) -> List[Dict]:
+        """
+        获取 Top 20 并附加 AI 摘要
+
+        Args:
+            today: 今日仓库列表
+            ai_summaries: AI 摘要映射
+
+        Returns:
+            Top 20 仓库列表（带 AI 摘要）
+        """
+        top_20 = today[:20]
+        return self._attach_summaries(top_20, ai_summaries)
+
     def _get_default_top_20(self, candidates: List[Dict], ai_summaries: Dict) -> List[Dict]:
         """获取默认 Top 20 (即过滤后的前 20)"""
         top_20 = candidates[:20]
