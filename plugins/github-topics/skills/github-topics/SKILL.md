@@ -1,0 +1,75 @@
+# GitHub Topics Trending
+
+追踪 GitHub 话题下的热门项目趋势，AI 智能分析，每日趋势报告。
+
+## 功能
+
+- **数据采集**: 使用 GitHub API 按话题获取热门仓库
+- **AI 分析**: 使用 Claude AI 对仓库进行智能分类和摘要
+- **趋势计算**: 计算星标变化、新晋项目、活跃项目等趋势
+- **邮件报告**: 发送专业的 HTML 邮件报告
+- **静态网站**: 生成 GitHub Pages 静态展示页面
+
+## 使用方法
+
+### 查看今日趋势
+
+```bash
+# 查看指定话题的趋势
+cd /path/to/github-topics-trending
+python -m src.main
+```
+
+### 仅获取数据
+
+```bash
+# 不发送邮件，仅获取和分析数据
+python -m src.main --fetch-only
+```
+
+## 环境变量配置
+
+| 变量 | 说明 | 必需 |
+|------|------|------|
+| `GH_TOKEN` | GitHub Personal Access Token | 是 |
+| `TOPIC` | 要追踪的 GitHub Topic (默认: claude-code) | 否 |
+| `ZHIPU_API_KEY` | Claude API Key (智谱代理) | 是 |
+| `RESEND_API_KEY` | Resend 邮件服务 API Key | 是 |
+| `EMAIL_TO` | 收件人邮箱 | 是 |
+| `RESEND_FROM_EMAIL` | 发件人邮箱 | 否 |
+| `DB_PATH` | 数据库路径 (默认: data/github-trending.db) | 否 |
+| `DB_RETENTION_DAYS` | 数据保留天数 (默认: 90) | 否 |
+
+## 仓库分类
+
+- **插件**: Claude Code / VS Code 插件
+- **工具**: 开发工具、CLI 工具
+- **模板**: 项目模板、脚手架
+- **文档**: 教程、文档、书籍
+- **示例**: Demo 项目、示例代码
+- **集成**: 集成工具、包装器
+- **库**: Python/JS/其他库
+- **应用**: 完整应用
+- **其他**: 无法分类
+
+## 输出内容
+
+### 邮件报告包含
+
+- Top 20 经典榜单
+- 星标增长 Top 5
+- 新晋项目
+- 活跃项目
+- 趋势统计
+
+### 静态网站包含
+
+- 首页
+- 每日趋势页
+- 分类浏览页
+- 仓库详情页
+
+## 相关链接
+
+- GitHub: https://github.com/topics/claude-code
+- API 文档: https://docs.github.com/en/rest
