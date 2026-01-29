@@ -64,38 +64,48 @@ class AISummarizer:
         if not repos:
             return []
 
-        print(f"🤖 正在调用 Nvidia AI 分析 {len(repos)} 个仓库...")
+        batch_size = 10
+        all_results = []
+        total_batches = (len(repos) + batch_size - 1) // batch_size
 
-        # 构建批量分析 Prompt
-        prompt = self._build_batch_prompt(repos)
+        print(f"🤖 准备分析 {len(repos)} 个仓库，分 {total_batches} 批次执行 (每批 {batch_size} 个)...")
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.3,
-                max_tokens=self.max_tokens,
-                top_p=1,
-                stream=False
-            )
+        for i in range(0, len(repos), batch_size):
+            batch_repos = repos[i : i + batch_size]
+            current_batch = i // batch_size + 1
+            print(f"   [批次 {current_batch}/{total_batches}] 正在调用 Nvidia AI 分析 {len(batch_repos)} 个仓库...")
 
-            result_text = response.choices[0].message.content
-            print(f"✅ AI 响应成功")
+            # 构建批量分析 Prompt
+            prompt = self._build_batch_prompt(batch_repos)
 
-            # 解析结果
-            results = self._parse_batch_response(result_text, repos)
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.3,
+                    max_tokens=self.max_tokens,
+                    top_p=1,
+                    stream=False
+                )
 
-            return results
+                result_text = response.choices[0].message.content
+                print(f"   ✅ [批次 {current_batch}] AI 响应成功")
 
-        except Exception as e:
-            print(f"❌ AI API 调用失败: {e}")
-            # 返回基本信息作为降级方案
-            return self._fallback_summaries(repos)
+                # 解析结果
+                results = self._parse_batch_response(result_text, batch_repos)
+                all_results.extend(results)
+
+            except Exception as e:
+                print(f"   ❌ [批次 {current_batch}] AI API 调用失败: {e}")
+                # 返回基本信息作为降级方案
+                all_results.extend(self._fallback_summaries(batch_repos))
+        
+        return all_results
 
     def _build_batch_prompt(self, repos: List[Dict]) -> str:
         """
@@ -103,7 +113,7 @@ class AISummarizer:
         """
         # 构建仓库列表
         repos_text = ""
-        for i, repo in enumerate(repos[:20], 1):  # 一次最多分析 20 个
+        for i, repo in enumerate(repos, 1):  # 处理传入的所有仓库（已在外部由 batch 控制）
             repos_text += f"\n{'sz'*40}\n" # 分隔符
             repos_text += f"【仓库 {i}】\n"
             repos_text += f"名称: {repo.get('repo_name')}\n"
@@ -124,7 +134,7 @@ class AISummarizer:
             for key, zh in REPO_CATEGORIES.items()
         ])
 
-        prompt = f"""你是一个开源项目分析专家。请分析以下 {min(len(repos), 20)} 个 GitHub 仓库，为每个仓库生成摘要和分类。
+        prompt = f"""你是一个开源项目分析专家。请分析以下 {len(repos)} 个 GitHub 仓库，为每个仓库生成摘要和分类。
 
 {repos_text}
 
