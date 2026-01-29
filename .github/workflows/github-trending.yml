@@ -36,9 +36,9 @@ jobs:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           NVIDIA_BASE_URL: ${{ secrets.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1' }}
           NVIDIA_MODEL: ${{ secrets.NVIDIA_MODEL || 'meta/llama3-70b-instruct' }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL || 'onboarding@resend.dev' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DEDUPLICATE_DAYS: 7
           DB_PATH: data/github-trending.db
           DB_RETENTION_DAYS: 90
         run: |
