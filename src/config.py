@@ -64,6 +64,8 @@ DB_RETENTION_DAYS = _get_env_int("DB_RETENTION_DAYS", 90)
 # ============================================================================
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "docs")
 GITHUB_PAGES_URL = os.getenv("GITHUB_PAGES_URL", "")
+# GitHub Pages 部署时的子路径 (例如 /github-topics-trending)
+BASE_URL = os.getenv("BASE_URL", "/github-topics-trending")
 
 # ============================================================================
 # 告警阈值

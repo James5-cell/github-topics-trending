@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Dict, List
 from pathlib import Path
 
-from src.config import OUTPUT_DIR, TOPIC, SITE_META, get_theme, CATEGORIES, format_number
+from src.config import OUTPUT_DIR, TOPIC, SITE_META, get_theme, CATEGORIES, format_number, BASE_URL
 
 
 class WebGenerator:
@@ -26,6 +26,10 @@ class WebGenerator:
         self.theme = get_theme(theme)
         self.topic = TOPIC
         self.meta = SITE_META
+        # 确保 url_prefix 不以 / 结尾，但以 / 开头（除非为空）
+        self.url_prefix = BASE_URL.rstrip('/')
+        if self.url_prefix and not self.url_prefix.startswith('/'):
+            self.url_prefix = '/' + self.url_prefix
 
         # 确保输出目录存在
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -486,16 +490,16 @@ body {{
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} - {self.meta['title']}</title>
     <meta name="description" content="{self.meta['description']}">
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="{self.url_prefix}/assets/css/style.css">
 </head>
 <body>
     <nav class="nav">
         <div class="container nav-content">
-            <a href="/" class="nav-logo">{self.meta['title']}</a>
+            <a href="{self.url_prefix}/" class="nav-logo">{self.meta['title']}</a>
             <div class="nav-links">
-                <a href="/">首页</a>
-                <a href="/trending/latest.html">趋势</a>
-                <a href="/category/plugin.html">分类</a>
+                <a href="{self.url_prefix}/">首页</a>
+                <a href="{self.url_prefix}/trending/latest.html">趋势</a>
+                <a href="{self.url_prefix}/category/plugin.html">分类</a>
             </div>
         </div>
     </nav>
@@ -519,7 +523,7 @@ body {{
 
         return f"""
         <div class="repo-card">
-            <h3><a href="/repo/{repo_name.replace('/', '-')}.html">{repo_name}</a></h3>
+            <h3><a href="{self.url_prefix}/repo/{repo_name.replace('/', '-')}.html">{repo_name}</a></h3>
             <div class="stats">
                 <span>⭐ {format_number(stars)}</span>
             </div>
@@ -561,7 +565,7 @@ body {{
 
         return f"""
         <div class="category-card">
-            <a href="/category/{key}.html">
+            <a href="{self.url_prefix}/category/{key}.html">
                 <div class="category-icon">{category['icon']}</div>
                 <div class="category-name">{category['name']}</div>
                 <div class="category-desc">{category['description']}</div>
