@@ -3,7 +3,7 @@ name: GitHub Topics Trending
 on:
   schedule:
     # 每天 UTC 02:00 (北京时间 10:00) 运行
-    - cron: '0 2 * * *'
+    # - cron: '0 2 * * *'
   workflow_dispatch:  # 支持手动触发
 
 # 设置权限
